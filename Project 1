@@ -1,0 +1,145 @@
+✅ Step 1: Court Selection
+
+Recommended: Start with Faridabad District Court via https://districts.ecourts.gov.in/faridabad
+Why?
+
+Easier CAPTCHA
+
+Uses common eCourts infra (standard HTML layout, forms)
+
+
+
+---
+
+✅ Step 2: Tech Stack Recommendation
+
+Frontend: HTML + Tailwind (or Bootstrap) + Vanilla JS or React
+
+Backend: Python (Flask or FastAPI) or Node.js (Express)
+
+Scraping: Playwright (best for dynamic JS-rendered content), or Selenium (fallback)
+
+Database: SQLite (simple, portable)
+
+PDF Parsing (if needed): pdfplumber or PyMuPDF
+
+Captcha Handling: Manual field entry, or use an external CAPTCHA solver (2Captcha, AntiCaptcha, etc.)
+
+
+
+---
+
+✅ Step 3: Key Features Breakdown
+
+1. UI Form
+
+Fields:
+
+Case Type (dropdown)
+
+Case Number (input)
+
+Filing Year (input)
+
+
+Submit → trigger API call to backend
+
+
+2. Backend Scraper
+
+Simulate a real user browsing the court site:
+
+Bypass or solve CAPTCHA (document this in README)
+
+Use Playwright for headless browser control
+
+Navigate court form, input values, submit
+
+
+Parse:
+
+Parties involved
+
+Filing date & next hearing date
+
+Latest order/judgment PDF link
+
+
+
+3. Data Storage
+
+Use SQLite to log:
+
+Query details: {case type, number, year, timestamp}
+
+Raw HTML response
+
+Parsed data
+
+
+
+4. Display Output
+
+After search → show clean summary UI:
+
+Parties (Petitioner vs Respondent)
+
+Dates (filing, hearing)
+
+Download link to judgment PDF
+
+
+
+5. Error Handling
+
+Handle:
+
+Site down
+
+Case not found
+
+CAPTCHA failure
+
+
+Show user-friendly alerts/messages
+
+
+
+---
+
+✅ Step 4: Deliverables
+
+Item	Notes
+
+GitHub Repo	MIT or Apache-2.0 licensed
+README.md	Include: court chosen, CAPTCHA strategy, setup instructions, env vars
+Demo Video	Max 5 minutes – screen-recorded walkthrough
+(Optional)	Dockerfile, simple unit tests, GitHub Actions CI
+
+
+
+---
+
+✅ Example README Structure (Summary)
+
+## Court Chosen
+Faridabad District Court (https://districts.ecourts.gov.in/faridabad)
+
+## Setup
+- Python 3.11
+- `pip install -r requirements.txt`
+- Set ENV variables: `COURT_URL`, `DB_PATH`
+
+## CAPTCHA Handling
+Manually input CAPTCHA via frontend → sent to backend  
+(Or solved via 2Captcha API)
+
+## Run Locally
+```bash
+python app.py
+
+Sample Query
+
+Case Type: CrlA
+Number: 1234
+Year: 2021
