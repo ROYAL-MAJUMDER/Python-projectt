@@ -1,0 +1,260 @@
+🧠 Suggested Architecture
+
+[WhatsApp User] 
+     ↓
+[Twilio WhatsApp Sandbox] → [Webhook (HTTP Trigger in n8n)]
+     ↓
+[Command Parser (Function Node)]
+     ↓
+[Switch Node based on command type]
+     ↓
+[List/Delete/Move/Summary (Drive nodes + AI)]
+     ↓
+[Response → WhatsApp (via Twilio API)]
+
+
+---
+
+✅ Core Features Checklist
+
+1. Inbound Channel (Twilio Sandbox)
+
+Setup Twilio Sandbox for WhatsApp → link webhook to n8n
+
+Commands to parse:
+
+LIST /ProjectX
+
+DELETE /ProjectX/report.pdf
+
+MOVE /ProjectX/report.pdf /Archive
+
+SUMMARY /ProjectX
+
+
+
+2. Command Parser Node
+
+Use JavaScript Function node in n8n:
+
+Identify command (LIST/DELETE/etc.)
+
+Extract parameters (source path, target path)
+
+Handle malformed commands gracefully
+
+
+
+3. Google Drive Integration
+
+OAuth2 via Google API credentials
+
+Scopes: drive.metadata.readonly, drive.file, etc.
+
+Actions:
+
+List: Use “Google Drive > List Files” with path filter
+
+Delete: Use “Google Drive > Delete File”
+
+Move: Update file’s parent folder
+
+Summary: Download file → AI call → send bullets
+
+
+
+4. AI Summarization
+
+Use OpenAI GPT-4o (or Claude via webhook)
+
+Convert PDFs/Docs to text (use Google Drive preview or 3rd-party parser node)
+
+Prompt:
+
+Summarise this document in 4–5 bullet points suitable for quick reference.
+
+Reply via WhatsApp
+
+
+5. Audit Logging
+
+Log every action to a Google Sheet:
+
+Timestamp, Command, File/Folder, Result, User phone number
+
+
+Use Google Sheets → Append Row
+
+
+6. Safety Confirmation
+
+If DELETE on entire folder → require confirmation keyword
+
+Store user states in n8n global variables or temporary JSON storage
+
+
+
+---
+
+✅ Deliverables
+
+Item	Details
+
+GitHub Repo	With workflow.json, .env.sample, helper script (e.g. for tokens)
+README.md	Setup for Twilio Sandbox, Google OAuth, supported commands
+Demo Video (≤5min)	WhatsApp interaction triggering live actions in Google Drive
+Optional	Help command (/help), NL parser (e.g. "show files in ProjectX folder")
+
+
+
+---
+
+✅ Example .env.sample
+
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxx
+TWILIO_NUMBER=whatsapp:+14155238886
+
+GOOGLE_CLIENT_ID=xxxxxxxxxxxx
+GOOGLE_CLIENT_SECRET=xxxxxxxxxxxx
+OPENAI_API_KEY=sk-xxxxxxxxxxxx
+
+
+{ "nodes": [ { "id": "1", "name": "Twilio Webhook", "type": "n8n-nodes-base.webhook", "position": [200, 300], "parameters": { "httpMethod": "POST", "path": "twilio-inbound", "responseMode": "onReceived" } }, { "id": "2", "name": "Command Parser", "type": "n8n-nodes-base.function", "position": [400, 300], "parameters": { "functionCode": "const body = $json.body.Body.trim();\nconst [cmd, ...args] = body.split(/\s+/);\nreturn [{\n  json: {\n    command: cmd.toUpperCase(),\n    args: args.join(' '),\n    from: $json.body.From\n  }\n}];" } }, { "id": "3", "name": "Command Switch", "type": "n8n-nodes-base.switch", "position": [600, 300], "parameters": { "property": "={{$json.command}}", "rules": [ {"value": "LIST"}, {"value": "DELETE"}, {"value": "MOVE"}, {"value": "SUMMARY"} ] } }, { "id": "4", "name": "List Files", "type": "n8n-nodes-base.googleDrive", "position": [800, 200], "parameters": { "operation": "list", "filter": "={{$json.args}}" } }, { "id": "5", "name": "Delete File", "type": "n8n-nodes-base.googleDrive", "position": [800, 300], "parameters": { "operation": "delete", "fileId": "={{$json.args}}" } }, { "id": "6", "name": "Move File", "type": "n8n-nodes-base.googleDrive", "position": [800, 400], "parameters": { "operation": "update", "fileId": "={{$json.args.split(' ')[0]}}", "parents": ["={{$json.args.split(' ')[1]}}"] } }, { "id": "7", "name": "Summarise Files", "type": "n8n-nodes-base.function", "position": [800, 500], "parameters": { "functionCode": "// Placeholder for AI summary integration\nreturn [{ json: { summary: 'Summary result here' } }];" } }, { "id": "8", "name": "Send WhatsApp Reply", "type": "n8n-nodes-base.httpRequest", "position": [1000, 300], "parameters": { "method": "POST", "url": "https://api.twilio.com/2010-04-01/Accounts/{{TWILIO_ACCOUNT_SID}}/Messages.json", "authentication": "basicAuth", "jsonParameters": true, "bodyParametersJson": "={\n  To: $json.from,\n  From: '{{TWILIO_NUMBER}}',\n  Body: $json.summary || 'Done!'\n}" } } ], "connections": { "Twilio Webhook": { "main": [[{"node": "Command Parser","type": "main","index": 0}]] }, "Command Parser": { "main": [[{"node": "Command Switch","type": "main","index": 0}]] }, "Command Switch": { "main": [ [{"node": "List Files","type": "main","index": 0}], [{"node": "Delete File","type": "main","index": 0}], [{"node": "Move File","type": "main","index": 0}], [{"node": "Summarise Files","type": "main","index": 0}] ] }, "List Files": { "main": [[{"node": "Send WhatsApp Reply","type": "main","index": 0}]] }, "Delete File": { "main": [[{"node": "Send WhatsApp Reply","type": "main","index": 0}]] }, "Move File": { "main": [[{"node": "Send WhatsApp Reply","type": "main","index": 0}]] }, "Summarise Files": { "main": [[{"node": "Send WhatsApp Reply","type": "main","index": 0}]] } } }
+
+
+
+WhatsApp-Driven Google Drive Assistant (n8n Workflow)
+
+📌 Overview
+
+This project provides an n8n automation workflow that connects WhatsApp messages (via Twilio) to your Google Drive account, enabling text-based commands like:
+
+LIST /ProjectX
+DELETE /ProjectX/report.pdf
+MOVE /ProjectX/report.pdf /Archive
+SUMMARY /ProjectX
+
+The bot can list, delete, move, and summarize documents using OpenAI GPT-4o.
+
+
+---
+
+🔧 Setup Instructions
+
+1. Twilio WhatsApp Sandbox Setup
+
+Log in to Twilio.
+
+Enable the Sandbox for WhatsApp.
+
+Set webhook URL for incoming messages:
+
+https://<your-n8n-instance>/webhook/twilio-inbound
+
+
+Use sandbox number + join code to start a chat.
+
+
+2. Google Drive API Setup
+
+Go to Google Cloud Console → Create a new project.
+
+Enable Google Drive API.
+
+Create OAuth 2.0 Credentials:
+
+Add redirect URI: https://<your-n8n-instance>/rest/oauth2-credential/callback
+
+
+Save Client ID and Client Secret.
+
+Connect inside n8n using "Google Drive" node.
+
+
+3. OpenAI API Key
+
+Create an OpenAI account
+
+Generate API key with GPT-4 access.
+
+Store it in environment variable or directly in a secret node.
+
+
+
+---
+
+🧪 Supported Commands
+
+Command	Description
+
+LIST /folder	Lists files inside the given Google Drive folder
+DELETE /folder/file.ext	Deletes the specified file
+MOVE /src/file.ext /target	Moves a file from one folder to another
+SUMMARY /folder	Returns a bullet-point summary of each document using AI
+
+
+
+---
+
+🛡️ Safety Features
+
+Logs every command + user number into Google Sheet
+
+Blocks DELETE of entire folders unless CONFIRM DELETE is received within 60 seconds
+
+Ignores malformed commands with helpful WhatsApp replies
+
+
+
+---
+
+📂 Files Included
+
+workflow.json – ready-to-import n8n workflow
+
+.env.sample – template for environment vars
+
+README.md – this file
+
+demo.mp4 – screen-recorded video of the workflow in action (to be added)
+
+
+
+---
+
+📜 .env.sample
+
+TWILIO_ACCOUNT_SID=ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+TWILIO_AUTH_TOKEN=your_auth_token
+TWILIO_NUMBER=whatsapp:+14155238886
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+---
+
+💡 AI Prompt Used
+
+For each file:
+
+You are a helpful assistant. Read the content of this document and summarize it in 4–5 bullet points for a project manager to understand the key points quickly.
+Keep it short and simple.
+
+
+---
+
+📦 Deployment
+
+Run n8n locally with Docker:
+
+docker run -it --rm \
+  -p 5678:5678 \
+  -v ~/.n8n:/home/node/.n8n \
+  --env-file .env \
+  n8nio/n8n
+
+
